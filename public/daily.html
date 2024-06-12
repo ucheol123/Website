@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily</title>
+    <link rel="stylesheet" type="text/css" href="style.css">
+
+    <meta http-equiv="Cache-Control" content="private, max-age=86400, stale-while-revalidate=604800">
+
+    <style>
+        .details {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .details .recentinfo canvas {
+            display: block;
+            margin: 0 auto;
+            width: 100%;
+            height: auto;
+        }
+
+        .details .recentinfo {
+            width: 100%;
+            position: relative;
+            background: var(--white);
+            padding: 20px;
+            box-shadow: 0 7px 25px rgba(0, 0, 0, 0.08);
+            border-radius: 20px;
+            border: solid 3px rgba(54, 162, 235, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            font-family: sans-serif;
+        }
+
+        .chartMenu {
+            width: 100vw;
+            height: 40px;
+            background: #1A1A1A;
+            color: rgba(54, 162, 235, 1);
+        }
+
+        .chartMenu p {
+            padding: 10px;
+            font-size: 20px;
+        }
+
+        .chartCard {
+            width: 100vw;
+            height: calc(100vh - 40px);
+            background: rgba(54, 162, 235, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chartBox {
+            width: 1000px;
+            padding: 20px;
+            background: white;
+        }
+    </style>
+</head>
+
+<body>
+    <script src="https://www.gstatic.com/firebasejs/8.6.5/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.5/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.5/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.5/firebase-storage.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.min.js"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+    <div class="container">
+        <div class="navigation">
+            <ul>
+                <li>
+                    <a href="dashboard.html">
+                        <span class="icon"><ion-icon name="restaurant-outline"></ion-icon></span>
+                        <span class="title" style="font-size:30px;">식당 혼잡도</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="dashboard.html">
+                        <span class="icon"><ion-icon name="home-outline"></ion-icon></span>
+                        <span class="title">Dashboard</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="daily.html">
+                        <span class="icon"><ion-icon name="people-outline"></ion-icon></span>
+                        <span class="title">Congestion & Peak Times</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="log.html">
+                        <span class="icon"><ion-icon name="chatbubble-ellipses-outline"></ion-icon></span>
+                        <span class="title">Logs</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="index.html">
+                        <span class="icon"><ion-icon name="log-out-outline"></ion-icon></span>
+                        <span class="title">Log Out</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!--main-->
+        <div class="main">
+            <div class="topbar">
+                <div class="toggle">
+                    <ion-icon name="menu-outline"></ion-icon>
+                </div>
+                <!--search-->
+                <div class="search">
+                    <label>
+                        <input type="text" placeholder="Search here" id="input">
+                        <ion-icon name="search-outline"></ion-icon>
+                    </label>
+                </div>
+                <!--userImg-->
+                <div class="user">
+                    <img src="img/user.jpg" alt="Example description">
+                </div>
+            </div>
+
+            <div class="details">
+                <div class="recentinfo">
+                    <div class="cardHeader">
+                        <h2 style="padding-bottom: 10px;">혼잡도 및 시간대별 최대 손님 수</h2>
+                    </div>
+                    <div class="chartBox" style="margin : 0 auto">
+                        <input type="date" id="date" name="date" min="2024-06-02" max="2024-06-11">
+                        <canvas id="myChart1"></canvas>
+                        <canvas id="myChart2"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+
+    <script>
+        var firebaseConfig = {
+            apiKey: "YOUR_ACTUAL_API_KEY",
+            authDomain: "YOUR_ACTUAL_AUTH_DOMAIN",
+            databaseURL: "YOUR_ACTUAL_DATABASE_URL",
+            projectId: "YOUR_ACTUAL_PROJECT_ID",
+            storageBucket: "YOUR_ACTUAL_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_ACTUAL_MESSAGING_SENDER_ID",
+            appId: "YOUR_ACTUAL_APP_ID",
+            measurementId: "YOUR_ACTUAL_MEASUREMENT_ID"
+        };
+        firebase.initializeApp(firebaseConfig);
+
+        const db = firebase.firestore();
+        const dateInput = document.getElementById('date');
+        var myChart_1;
+        var myChart_2;
+        const collectionRef = db.collection('restaurant');
+        const today = new Date();
+        const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0);
+        const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+
+        collectionRef.where('time', '>=', startOfDay).where('time', '<=', endOfDay).orderBy('time', 'desc').get().then((querySnapshot) => {
+            const labels = [];
+            const data = [];
+            const hourlyData = Array.from({ length: 11 }, () => 0);
+
+            querySnapshot.forEach((doc) => {
+                const 데이터 = doc.data();
+                const time = 데이터.time.toDate();
+                const person_counts = 데이터.person_counts;
+                const formattedTime = `${time.getHours()}시 ${time.getMinutes()}분`;
+                const total = 30;
+                const congestion = Math.round((person_counts / total) * 100);
+
+                labels.unshift(formattedTime);
+                data.unshift(congestion);
+
+                const hour = time.getHours();
+                if (hour >= 10 && hour <= 20 && hourlyData[hour - 10] < 데이터.person_counts) {
+                    hourlyData[hour - 10] = 데이터.person_counts;
+                }
+            });
+
+            drawCharts(labels, data, hourlyData);
+        }).catch((error) => {
+            console.error('데이터 가져오기 오류:', error);
+        });
+
+        function drawCharts(labels, data, hourlyData) {
+            // Draw Chart 1
+            var ctx1 = document.getElementById('myChart1').getContext('2d');
+            var myChart_1 = new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '혼잡도(%)',
+                        data: data,
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '시간',
+                                font: {
+                                    size: 25,
+                                    weight: 'bold'
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '혼잡도 (%)',
+                                font: {
+                                    size: 25,
+                                    weight: 'bold'
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Draw Chart 2
+            var ctx2 = document.getElementById('myChart2').getContext('2d');
+            var myChart_2 = new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels: ['10시', '11시', '12시', '13시', '14시', '15시', '16시', '17시', '18시', '19시', '20시'],
+                    datasets: [{
+                        label: '최대 손님 수',
+                        data: hourlyData,
+                        backgroundColor: [
+                            'rgba(255, 26, 104, 0.2)',
+                            'rgba(54, 162, 235, 0.2)',
+                            'rgba(255, 206, 86, 0.2)',
+                            'rgba(75, 192, 192, 0.2)',
+                            'rgba(153, 102, 255, 0.2)',
+                            'rgba(255, 159, 64, 0.2)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 26, 104, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)',
+                            'rgba(255, 159, 64, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '시간',
+                                font: {
+                                    size: 25,
+                                    weight: 'bold'
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '최대 손님 수 (명)',
+                                font: {
+                                    size: 25,
+                                    weight: 'bold'
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 날짜 선택에 따라 그래프를 업데이트하는 함수
+        function updateCharts() {
+            const selectedDate = new Date(dateInput.value);
+            const startOfDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), 0, 0, 0);
+            const endOfDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), 23, 59, 59);
+
+            const collectionRef = db.collection('restaurant');
+
+            // 첫 번째 차트 데이터 가져오기
+            collectionRef.where('time', '>=', startOfDay).where('time', '<=', endOfDay).orderBy('time', 'desc').get().then((querySnapshot) => {
+                const labels = [];
+                const data = [];
+
+                querySnapshot.forEach((doc) => {
+                    const 데이터 = doc.data();
+                    const time = 데이터.time.toDate();
+                    const person_counts = 데이터.person_counts;
+                    const formattedTime = `${time.getHours()}시 ${time.getMinutes()}분`;
+                    const total = 30;
+                    const congestion = Math.round((person_counts / total) * 100);
+
+                    labels.unshift(formattedTime);
+                    data.unshift(congestion);
+                });
+
+                // 첫 번째 차트 업데이트
+                updateChart1(labels, data);
+            }).catch((error) => {
+                console.error('데이터 가져오기 오류:', error);
+            });
+
+            // 두 번째 차트 데이터 가져오기
+            const hourlyData = Array.from({ length: 11 }, () => 0);
+
+            collectionRef.where('time', '>=', startOfDay).where('time', '<=', endOfDay).get().then((querySnapshot) => {
+                querySnapshot.forEach((doc) => {
+                    const 데이터 = doc.data();
+                    const time = 데이터.time;
+                    const hour = time.toDate().getHours();
+
+                    if (hour >= 10 && hour <= 20 && hourlyData[hour - 10] < 데이터.person_counts) {
+                        hourlyData[hour - 10] = 데이터.person_counts;
+                    }
+                });
+
+                // 두 번째 차트 업데이트
+                updateChart2(hourlyData);
+            }).catch((error) => {
+                console.error('데이터 가져오기 오류:', error);
+            });
+        }
+
+        // 날짜 선택 input에 change 이벤트 리스너 추가
+        dateInput.addEventListener('change', updateCharts);
+
+        var myChart_1 = null;
+        var myChart_2 = null;
+
+        function updateChart1(labels, data) {
+            var ctx1 = document.getElementById('myChart1').getContext('2d');
+
+            if (Chart.getChart("myChart1")) {
+                Chart.getChart("myChart1")?.destroy()
+            }
+
+            myChart_1 = new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '혼잡도(%)',
+                        data: data,
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '시간',
+                                font: {
+                                    size: 25,
+                                    weight: 'bold'
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '혼잡도 (%)',
+                                font: {
+                                    size: 25,
+                                    weight: 'bold'
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 두 번째 차트 업데이트 함수
+        function updateChart2(hourlyData) {
+            var ctx2 = document.getElementById('myChart2').getContext('2d');
+
+            if (Chart.getChart("myChart2")) {
+                Chart.getChart("myChart2")?.destroy()
+            }
+
+            myChart_2 = new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels: ['10시', '11시', '12시', '13시', '14시', '15시', '16시', '17시', '18시', '19시', '20시'],
+                    datasets: [{
+                        label: '최대 손님 수',
+                        data: hourlyData,
+                        backgroundColor: [
+                            'rgba(255, 26, 104, 0.2)',
+                            'rgba(54, 162, 235, 0.2)',
+                            'rgba(255, 206, 86, 0.2)',
+                            'rgba(75, 192, 192, 0.2)',
+                            'rgba(153, 102, 255, 0.2)',
+                            'rgba(255, 159, 64, 0.2)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 26, 104, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)',
+                            'rgba(255, 159, 64, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '시간',
+                                font: {
+                                    size: 25,
+                                    weight: 'bold'
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '최대 손님 수 (명)',
+                                font: {
+                                    size: 25,
+                                    weight: 'bold'
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+    </script>
+
+    <script>
+        //MenuToggle
+        let toggle = document.querySelector('.toggle');
+        let navigation = document.querySelector('.navigation');
+        let main = document.querySelector('.main');
+
+        toggle.onclick = function () {
+            navigation.classList.toggle('active');
+            main.classList.toggle('active');
+        }
+
+        //add hovered class in selected list item
+        let list = document.querySelectorAll('.navigation li');
+        function activeLink() {
+            list.forEach((item) =>
+                item.classList.remove('hovered'));
+            this.classList.add('hovered');
+        }
+
+        list.forEach((item) =>
+            item.addEventListener('mouseover', activeLink));
+    </script>
+
+    </script>
+</body>
+
+</html>

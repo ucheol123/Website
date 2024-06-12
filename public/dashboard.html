@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <meta http-equiv="Cache-Control" content="private, max-age=86400, stale-while-revalidate=604800">
+
+    <style>
+        .details .recentinfo #todayElement,
+        .details .recentinfo .chartBox {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .details .recentinfo .content {
+            display: flex;
+            gap: 20px;
+            justify-content: space-between;
+
+        }
+
+        .section {
+            background: #fff;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+
+        .section .logs {
+            position: relative;
+            display: grid;
+            min-height: 100px;
+            background: var(--white);
+            padding: 20px;
+            box-shadow: 0 7px 25px rgba(0, 0, 0, 0.08);
+            border-radius: 20px;
+            border: solid 3px rgba(54, 162, 235, 1);
+        }
+
+        .logs {
+            max-height: 100px;
+            overflow-y: auto;
+            background: grey;
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="navigation">
+            <ul>
+                <li>
+                    <a href="dashboard.html">
+                        <span class="icon"><ion-icon name="restaurant-outline"></ion-icon></span>
+                        <span class="title" style="font-size:30px;">식당 혼잡도</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="dashboard.html">
+                        <span class="icon"><ion-icon name="home-outline"></ion-icon></span>
+                        <span class="title">Dashboard</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="daily.html">
+                        <span class="icon"><ion-icon name="people-outline"></ion-icon></span>
+                        <span class="title">Congestion & Peak Times</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="log.html">
+                        <span class="icon"><ion-icon name="chatbubble-ellipses-outline"></ion-icon></span>
+                        <span class="title">Logs</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="index.html">
+                        <span class="icon"><ion-icon name="log-out-outline"></ion-icon></span>
+                        <span class="title">Log Out</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!--main-->
+        <div class="main">
+            <div class="topbar">
+                <div class="toggle">
+                    <ion-icon name="menu-outline"></ion-icon>
+
+                </div>
+                <!--search-->
+                <div class="search">
+                    <label>
+                        <input type="text" placeholder="Search here" id="input">
+                        <ion-icon name="search-outline"></ion-icon>
+                    </label>
+                </div>
+                <!--userImg-->
+                <div class="user">
+                    <img src="img/user.jpg" alt="Example description">
+                </div>
+            </div>
+
+            <div class="details">
+                <div class="recentinfo">
+                    <div class="cardHeader">
+                        <h2>가장 최근 이미지</h2>
+                    </div>
+                    <div style="display: flex; justify-content: center;">
+                        <img src="" alt="최근 이미지" id="imageElement" style="max-width:500px; height:auto;">
+                    </div>
+                </div>
+
+                <div class="recentinfo">
+                    <div class="cardHeader">
+                        <h2>가장 최근 정보</h2>
+                    </div>
+                    <div class="content">
+                        <div id="todayElement"></div>
+                        <div class="chartBox"><canvas id="myChart3"></canvas></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="details">
+                <div class="recentinfo">
+                    <div class="cardHeader">
+                        <h2>오늘의 혼잡도 변화</h2>
+                    </div>
+                    <div class="recentgraph">
+                        <canvas id="myChart1"></canvas>
+                    </div>
+                </div>
+                <div class="recentinfo">
+                    <div class="cardHeader">
+                        <h2>오늘의 시간대별 최대 손님 수</h2>
+                    </div>
+                    <div class="recentgraph">
+                        <canvas id="myChart2"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div id="dataDisplay" class="logs"
+                    style="overflow-x: auto; overflow-y: auto; padding-left: 20px; max-height: 200px;">
+                    <div class="cardHeader">
+                        <h2 style="padding-bottom: 10px;">오늘의 식당 혼잡도 분석 로그</h2>
+                        <a href="log.html" class="btn">View All</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.5/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.5/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.5/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.5/firebase-storage.js"></script>
+
+    <script>
+        var firebaseConfig = {
+            apiKey: "YOUR_ACTUAL_API_KEY",
+            authDomain: "YOUR_ACTUAL_AUTH_DOMAIN",
+            databaseURL: "YOUR_ACTUAL_DATABASE_URL",
+            projectId: "YOUR_ACTUAL_PROJECT_ID",
+            storageBucket: "YOUR_ACTUAL_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_ACTUAL_MESSAGING_SENDER_ID",
+            appId: "YOUR_ACTUAL_APP_ID",
+            measurementId: "YOUR_ACTUAL_MEASUREMENT_ID"
+        };
+        firebase.initializeApp(firebaseConfig); 
+    </script>
+    <script>
+        //MenuToggle
+        let toggle = document.querySelector('.toggle');
+        let navigation = document.querySelector('.navigation');
+        let main = document.querySelector('.main');
+
+        toggle.onclick = function () {
+            navigation.classList.toggle('active');
+            main.classList.toggle('active');
+        }
+
+        //add hovered class in selected list item
+        let list = document.querySelectorAll('.navigation li');
+        function activeLink() {
+            list.forEach((item) =>
+                item.classList.remove('hovered'));
+            this.classList.add('hovered');
+        }
+
+        list.forEach((item) =>
+            item.addEventListener('mouseover', activeLink));
+    </script>
+
+
+    <script>
+        // Firestore 참조
+        const db = firebase.firestore();
+        const collectionRef = db.collection('restaurant'); // 컬렉션 이름 설정
+        const storage = firebase.storage();
+        const storageRef = storage.ref();
+
+        // 최근 데이터 가져오기
+        collectionRef.orderBy('time', 'desc').limit(1).get()
+            .then((querySnapshot) => {
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const person_counts = data.person_counts;
+                    const chair_count = data.chair_count;
+                    const table_count = data.table_count;
+                    const date = data.time.toDate();
+                    const formattedDate = `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`;
+                    const formattedTime = `${date.getHours()}시 ${date.getMinutes()}분 ${date.getSeconds()}초`;
+                    const total = 30;
+                    const congestion = Math.round((person_counts / total) * 100);
+                    const empty = (total - person_counts);
+                    const todayElement = document.getElementById('todayElement');
+                    todayElement.innerHTML = `
+                    <div style="margin: 10px 0; padding: 30px; background-color: white; text-align: center;">
+                        <span style="font-size: 25px; color: black; font-weight: bold;">
+                            업데이트 시간<br>
+                            <span style="font-size: 25px; color: blue;">${formattedDate}</span><br>
+                            <span style="font-size: 25px; color: red;">${formattedTime}</span><br><br><br>
+                            <span style="font-size: 25px; color: black;">좌석 현황 : </span>
+                            <span style="font-size: 25px; color: black;">${person_counts} / ${total}</span>
+                        </span>
+                    </div>
+            `;
+
+                    // 가장 최근의 이미지 가져오기
+                    const imagesRef = storageRef.child('result/');
+                    imagesRef.listAll().then(function (result) {
+                        var mostRecentImage;
+                        var mostRecentTime = 0;
+
+                        result.items.forEach(function (imageRef) {
+                            imageRef.getMetadata().then(function (metadata) {
+                                var timeCreated = new Date(metadata.timeCreated).getTime();
+
+                                if (timeCreated > mostRecentTime) {
+                                    mostRecentTime = timeCreated;
+                                    mostRecentImage = imageRef;
+                                }
+
+                                // 가장 최근의 이미지 URL 가져오기
+                                if (mostRecentImage) {
+                                    mostRecentImage.getDownloadURL().then(function (url) {
+                                        // 이미지 출력
+                                        document.getElementById('imageElement').src = url;
+                                    }).catch(function (error) {
+                                        console.error("Error getting image URL: ", error);
+                                    });
+                                }
+                            });
+                        });
+                    }).catch(function (error) {
+                        console.error("Error listing images: ", error);
+                    });
+                });
+            })
+            .catch((error) => {
+                console.error("Error getting recent data: ", error);
+            });
+    </script>
+
+    <script>
+        //로그
+        // 'restaurant' 컬렉션에서 데이터를 가져와서 출력하는 함수
+        function displayData(person_counts, chair_count, table_count, time) {
+
+            //날짜 객체 생성
+            const date = new Date(time.seconds * 1000);
+            const year = date.getFullYear();
+            const month = date.getMonth() + 1; // 월은 0부터 시작하므로 1을 더해야 함
+            const day = date.getDate();
+
+            const 요일 = ['일', '월', '화', '수', '목', '금', '토'][date.getDay()];
+            const 시 = date.getHours();
+            const 분 = date.getMinutes();
+            const 초 = date.getSeconds();
+
+            const total = 30;
+            const congestion = Math.round((person_counts / total) * 100);
+
+            const dataElement = document.createElement('div');
+            dataElement.innerHTML = `
+            <p>[${year}-${month}-${day} ${시}:${분}:${초}] (${요일})  사람 수 : ${person_counts}명 혼잡도 : ${congestion}% <br>
+                <span class="status ${getStatusClass(congestion)}">${getStatusText(congestion)}</span>
+            </p>`
+                ;
+            function getStatusClass(congestion) {
+                if (congestion >= 20) {
+                    return 'return';
+                } else if (congestion >= 10) {
+                    return 'pending';
+                } else {
+                    return 'delivered';
+                }
+            }
+
+            function getStatusText(congestion) {
+                if (congestion >= 20) {
+                    return '혼잡';
+                } else if (congestion >= 10) {
+                    return '보통';
+                } else {
+                    return '양호';
+                }
+            }
+
+
+            document.getElementById('dataDisplay').appendChild(dataElement);
+        }
+
+
+        const today = new Date();
+        const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0);
+        const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+
+        // 'restaurant' 컬렉션에서 데이터를 가져와서 출력
+        db.collection('restaurant').where('time', '>=', startOfDay).where('time', '<=', endOfDay).orderBy('time', 'desc').get().then((querySnapshot) => {
+            querySnapshot.forEach((doc) => {
+                const 데이터 = doc.data();
+                const person_counts = 데이터.person_counts;
+                const chair_count = 데이터.chair_count;
+                const table_count = 데이터.table_count;
+                const time = 데이터.time;
+
+                // 가져온 데이터를 출력
+                displayData(person_counts, chair_count, table_count, time);
+            });
+        }).catch((error) => {
+            console.error('데이터 가져오기 오류:', error);
+        });
+
+    </script>
+    <script src="my_chart.js"></script>
+</body>
+
+</html>
